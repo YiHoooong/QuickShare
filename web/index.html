@@ -1,0 +1,1561 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QuickShare</title>
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" href="icon.png" type="image/png" sizes="512x512">
+<link rel="apple-touch-icon" href="icon.png">
+<style>
+/* ===== 本地字体:不依赖 Google Fonts CDN,完全离线可用 ===== */
+@font-face {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 100 900;   /* 可变字体,覆盖 400/500 */
+  font-stretch: 100%;
+  font-display: swap;
+  src: url('fonts/roboto-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 100 900;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url('fonts/roboto-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* 图标字体是裁切后的子集(约 5 KB),新增图标名后请运行 tools/build_icon_font.py */
+@font-face {
+  font-family: 'Material Symbols Rounded';
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;    /* 加载完成前不显示图标名文字,避免闪出 "cloud_upload" */
+  src: url('fonts/material-symbols-rounded.woff2') format('woff2');
+}
+</style>
+<style>
+/* ===== Material 3 tokens ===== */
+:root {
+  --primary: #6750A4;
+  --on-primary: #FFFFFF;
+  --primary-container: #EADDFF;
+  --on-primary-container: #21005D;
+  --secondary-container: #E8DEF8;
+  --on-secondary-container: #1D192B;
+  --error: #B3261E;
+  --error-container: #F9DEDC;
+  --on-error-container: #410E0B;
+  --surface: #FEF7FF;
+  --surface-container-low: #F7F2FA;
+  --surface-container: #F3EDF7;
+  --surface-container-high: #ECE6F0;
+  --surface-container-highest: #E6E0E9;
+  --on-surface: #1D1B20;
+  --on-surface-variant: #49454F;
+  --outline: #79747E;
+  --outline-variant: #CAC4D0;
+  --inverse-surface: #322F35;
+  --inverse-on-surface: #F5EFF7;
+  --shadow: 0 1px 3px rgba(0,0,0,.18), 0 4px 8px rgba(0,0,0,.10);
+  color-scheme: light;
+}
+html[data-theme="dark"] {
+  --primary: #D0BCFF;
+  --on-primary: #381E72;
+  --primary-container: #4F378B;
+  --on-primary-container: #EADDFF;
+  --secondary-container: #4A4458;
+  --on-secondary-container: #E8DEF8;
+  --error: #F2B8B5;
+  --error-container: #8C1D18;
+  --on-error-container: #F9DEDC;
+  --surface: #141218;
+  --surface-container-low: #1D1B20;
+  --surface-container: #211F26;
+  --surface-container-high: #2B2930;
+  --surface-container-highest: #36343B;
+  --on-surface: #E6E0E9;
+  --on-surface-variant: #CAC4D0;
+  --outline: #938F99;
+  --outline-variant: #49454F;
+  --inverse-surface: #E6E0E9;
+  --inverse-on-surface: #322F35;
+  --shadow: 0 1px 3px rgba(0,0,0,.5), 0 4px 8px rgba(0,0,0,.35);
+  color-scheme: dark;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Roboto', system-ui, sans-serif;
+  background: var(--surface);
+  color: var(--on-surface);
+  min-height: 100vh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 24px 96px;
+  transition: background-color .3s, color .3s;
+}
+
+.material-symbols-rounded {
+  font-family: 'Material Symbols Rounded';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  font-feature-settings: 'liga';
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  user-select: none;
+}
+
+/* ===== 右上角悬浮按钮:主题 / 设置 ===== */
+.icon-fab {
+  position: fixed;
+  top: 20px;
+  z-index: 50;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  background: var(--surface-container-high);
+  color: var(--on-surface);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color .3s, transform .15s;
+}
+.icon-fab:hover { transform: scale(1.06); }
+.icon-fab:active { transform: scale(.96); }
+#themeBtn { right: 20px; }
+#settingsBtn { right: 76px; }
+
+/* ===== 页面布局:左上传区 + 右已上传 ===== */
+.container {
+  width: 100%;
+  max-width: 1080px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.layout {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.col-left {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.col-right {
+  flex: 0 0 360px;
+  width: 360px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+h1 {
+  font-size: 26px;
+  font-weight: 500;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.brand-logo {
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  display: block;
+}
+.subtitle {
+  font-size: 14px;
+  color: var(--on-surface-variant);
+  margin-top: 6px;
+}
+
+/* ===== 已上传面板 ===== */
+.up-panel {
+  background: var(--surface-container-low);
+  border-radius: 16px;
+  overflow: hidden;
+  position: sticky;
+  top: 24px;
+  min-width: 0;
+}
+.up-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 10px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--on-surface-variant);
+}
+.up-count {
+  background: var(--secondary-container);
+  color: var(--on-secondary-container);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.up-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 36px 20px;
+  font-size: 13px;
+  color: var(--on-surface-variant);
+}
+.up-empty .material-symbols-rounded { font-size: 32px; opacity: .45; }
+.up-list {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.col-right-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+}
+#v6ToggleGlobalBtn {
+  font-size: 13px;
+  padding: 0 12px;
+  height: 36px;
+  border-radius: 999px;
+}
+.btn.danger-btn {
+  color: var(--error);
+  font-size: 13px;
+  padding: 0 16px;
+  height: 36px;
+  border-radius: 999px;
+  transition: background-color .2s;
+}
+.btn.danger-btn:hover {
+  background: var(--error-container);
+  color: var(--on-error-container);
+}
+
+/* ===== 拖拽区 ===== */
+.dropzone {
+  border: 2px dashed var(--outline-variant);
+  border-radius: 24px;
+  background: var(--surface-container-low);
+  min-height: 240px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 32px 20px;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color .2s, background-color .2s;
+}
+.dropzone:hover {
+  border-color: var(--outline);
+  background: var(--surface-container);
+}
+.dropzone.over {
+  border-color: var(--primary);
+  background: var(--primary-container);
+}
+.dropzone .dz-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--primary-container);
+  color: var(--on-primary-container);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform .2s;
+}
+.dropzone.over .dz-icon { transform: scale(1.1); }
+.dz-icon .material-symbols-rounded { font-size: 32px; }
+.dz-title { font-size: 17px; font-weight: 500; }
+.dz-sub { font-size: 13px; color: var(--on-surface-variant); }
+
+/* ===== 文件列表 ===== */
+.list {
+  display: none;
+  flex-direction: column;
+  background: var(--surface-container-low);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.list.has-items { display: flex; }
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 12px 14px 20px;
+  animation: fade-in .3s;
+  min-width: 0;
+}
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+.f-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--secondary-container);
+  color: var(--on-secondary-container);
+}
+.row.done .f-icon {
+  background: var(--primary-container);
+  color: var(--on-primary-container);
+}
+.row.fail .f-icon {
+  background: var(--error-container);
+  color: var(--on-error-container);
+}
+
+.f-main { flex: 1; min-width: 0; }
+.f-name {
+  font-size: 15px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.f-info {
+  font-size: 12px;
+  color: var(--on-surface-variant);
+  margin: 2px 0 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.row.fail .f-info { color: var(--error); }
+
+.track {
+  height: 4px;
+  border-radius: 4px;
+  background: var(--surface-container-highest);
+  overflow: hidden;
+}
+.fill {
+  height: 100%;
+  width: 0;
+  border-radius: 4px;
+  background: var(--primary);
+  transition: width .15s linear;
+}
+.row.fail .fill { background: var(--error); }
+
+.mini-btn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--on-surface-variant);
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color .15s;
+}
+.mini-btn:hover { background: var(--surface-container-highest); }
+.mini-btn .material-symbols-rounded { font-size: 20px; }
+
+/* ===== 按钮 ===== */
+.btn {
+  height: 40px;
+  padding: 0 22px;
+  border: none;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: filter .15s, opacity .15s;
+}
+.btn:hover { filter: brightness(1.06); }
+.btn:active { filter: brightness(.94); }
+.btn:disabled { opacity: .4; cursor: not-allowed; filter: none; }
+
+.btn-primary { background: var(--primary); color: var(--on-primary); }
+.btn-ghost { background: transparent; color: var(--primary); }
+.btn-ghost:hover { background: var(--surface-container-high); filter: none; }
+
+/* ===== 全屏拖拽遮罩 ===== */
+.drop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  padding: 20px;
+  background: rgba(0, 0, 0, .32); /* M3 scrim */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s cubic-bezier(.2, 0, 0, 1);
+}
+.drop-overlay.visible { opacity: 1; }
+
+.drop-overlay .overlay-box {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  border: 2px dashed var(--outline);
+  border-radius: 28px; /* M3 extra-large shape */
+  background: var(--surface-container);
+  color: var(--on-surface);
+  transform: scale(.97);
+  transition: transform .25s cubic-bezier(.2, 0, 0, 1);
+}
+.drop-overlay.visible .overlay-box { transform: scale(1); }
+
+.overlay-box .ov-icon {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: var(--primary-container);
+  color: var(--on-primary-container);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.overlay-box.visible-anim .ov-icon { animation: bounce-in .4s cubic-bezier(.2, 0, 0, 1); }
+.ov-icon .material-symbols-rounded { font-size: 48px; }
+
+@keyframes bounce-in {
+  0%   { transform: translateY(10px) scale(.8); }
+  60%  { transform: translateY(-4px) scale(1.05); }
+  100% { transform: none; }
+}
+
+.overlay-box .ov-title {
+  font-size: 22px;
+  line-height: 28px;
+  font-weight: 400; /* M3 headline-small */
+}
+.overlay-box .ov-sub {
+  font-size: 14px;
+  line-height: 20px;
+  opacity: .75; /* body-medium on tonal surface */
+}
+
+.options-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 20px;
+  margin-top: -4px;
+  flex-wrap: wrap;
+}
+.auto-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--on-surface-variant);
+  user-select: none;
+}
+.auto-row span {
+  cursor: pointer;
+}
+.switch {
+  width: 44px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--surface-container-highest);
+  border: 2px solid var(--outline);
+  position: relative;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: background-color .2s, border-color .2s;
+}
+.switch .thumb {
+  position: absolute;
+  top: 50%;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--outline);
+  transform: translateY(-50%);
+  transition: left .2s cubic-bezier(.2, 0, 0, 1), width .2s, height .2s, background-color .2s;
+}
+.switch[aria-checked="true"] {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+.switch[aria-checked="true"] .thumb {
+  left: calc(100% - 21px);
+  width: 18px;
+  height: 18px;
+  background: var(--on-primary);
+}
+
+/* ===== 悬浮二维码预览 ===== */
+.qr-hover {
+  position: fixed;
+  z-index: 95;
+  background: var(--surface-container-high);
+  border-radius: 16px;
+  padding: 10px;
+  box-shadow: var(--shadow);
+  display: none;
+  pointer-events: none;
+}
+.qr-hover.show { display: block; }
+.qr-hover img {
+  width: 140px;
+  height: 140px;
+  display: block;
+  image-rendering: pixelated;
+}
+
+/* ===== 二维码对话框(M3 Dialog) ===== */
+.dialog-wrap {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: rgba(0, 0, 0, .32); /* scrim */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.dialog-wrap[hidden] { display: none; }
+
+.dialog {
+  background: var(--surface-container-high);
+  color: var(--on-surface);
+  border-radius: 28px;
+  padding: 24px;
+  width: 320px;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  box-shadow: var(--shadow);
+  animation: fade-in .2s;
+}
+.dlg-title {
+  font-size: 20px;
+  font-weight: 500;
+  align-self: flex-start;
+}
+.dlg-name {
+  font-size: 13px;
+  color: var(--on-surface-variant);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dlg-qr {
+  width: 220px;
+  height: 220px;
+  image-rendering: pixelated;
+}
+.dlg-url {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--on-surface-variant);
+  word-break: break-all;
+  text-align: center;
+}
+.dlg-actions {
+  display: flex;
+  gap: 8px;
+  align-self: flex-end;
+  margin-top: 4px;
+}
+
+/* ===== 设置对话框 ===== */
+.set-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  align-self: stretch;
+  margin-top: 4px;
+}
+.set-row label {
+  flex: 1;
+  font-size: 14px;
+  color: var(--on-surface-variant);
+}
+.set-input {
+  width: 116px;
+  height: 44px;
+  padding: 0 14px;
+  box-sizing: border-box;
+  font-family: inherit;
+  font-size: 15px;
+  color: var(--on-surface);
+  background: var(--surface);
+  border: 1px solid var(--outline);
+  border-radius: 8px;
+  outline: none;
+  transition: border-color .2s;
+}
+.set-input:focus { border-color: var(--primary); }
+.set-tip {
+  align-self: stretch;
+  font-size: 12px;
+  line-height: 17px;
+  color: var(--on-surface-variant);
+}
+.set-tip.err { color: var(--error); }
+
+/* ===== Toast:底部居中 ===== */
+.toast-wrap {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 24px;
+  display: flex;
+  justify-content: center;
+  padding: 0 16px;
+  pointer-events: none;
+  z-index: 100;
+}
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--inverse-surface);
+  color: var(--inverse-on-surface);
+  font-size: 14px;
+  padding: 13px 18px;
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  max-width: 100%;
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity .25s, transform .25s;
+}
+.toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+.toast .material-symbols-rounded { font-size: 20px; flex-shrink: 0; }
+
+@media (max-width: 900px) {
+  .layout { flex-direction: column; }
+  .col-right { flex: none; width: 100%; }
+}
+
+@media (max-width: 520px) {
+  body { padding: 32px 16px 96px; }
+  h1 { font-size: 22px; }
+}
+</style>
+</head>
+<body>
+
+<!-- 主题切换 / 设置(固定右上角) -->
+<button id="settingsBtn" class="icon-fab" aria-label="设置" title="设置">
+  <span class="material-symbols-rounded" id="settingsIcon">settings</span>
+</button>
+<button id="themeBtn" class="icon-fab" aria-label="切换深浅色主题" title="切换主题">
+  <span class="material-symbols-rounded" id="themeIcon">dark_mode</span>
+</button>
+
+<div class="container">
+  <div class="brand">
+    <img class="brand-logo" src="icon.png" alt="QuickShare">
+    <div>
+      <h1>上传文件</h1>
+      <p class="subtitle">拖拽文件到页面任意位置,或点击选择文件</p>
+    </div>
+  </div>
+
+  <div class="layout">
+    <!-- 左栏:上传区 -->
+    <div class="col-left">
+      <div class="dropzone" id="dropzone" role="button" tabindex="0"
+           title="点击：选择本机文件，免复制直传｜Shift + 点击：从浏览器上传"
+           aria-label="选择或拖放文件">
+        <div class="dz-icon">
+          <span class="material-symbols-rounded">cloud_upload</span>
+        </div>
+        <div class="dz-title">将文件拖放到这里</div>
+        <div class="dz-sub">或点击选择本机文件</div>
+        <input type="file" id="picker" multiple hidden>
+      </div>
+
+      <div class="options-bar">
+        <div class="auto-row">
+          <span id="directLabel" title="开启后二维码/复制出来的链接直接指向文件，打开即下载，不再经过下载页">直链模式</span>
+          <button class="switch" id="directSwitch" role="switch" aria-checked="true" aria-label="直链模式">
+            <span class="thumb"></span>
+          </button>
+        </div>
+        <div class="auto-row">
+          <span id="cleanExitLabel">退出程序自动清空文件</span>
+          <button class="switch" id="cleanExitSwitch" role="switch" aria-checked="false" aria-label="退出程序自动清空文件">
+            <span class="thumb"></span>
+          </button>
+        </div>
+      </div>
+
+      <div class="list" id="list"></div>
+    </div>
+
+    <!-- 右栏:已上传 -->
+    <aside class="col-right">
+      <div class="up-panel">
+        <div class="up-header">
+          <span>已上传</span>
+          <span class="up-count" id="upCount">0</span>
+        </div>
+        <div class="up-empty" id="upEmpty">
+          <span class="material-symbols-rounded">cloud_done</span>
+          <span>还没有已上传的文件</span>
+        </div>
+        <div class="up-list" id="upList"></div>
+      </div>
+      <div class="col-right-actions">
+        <button class="btn btn-ghost" id="v6ToggleGlobalBtn" title="切换 IPv4 / IPv6 二维码地址">
+          <span class="material-symbols-rounded" style="font-size:18px">lan</span>
+          <span id="v6ToggleGlobalText">二维码: IPv4</span>
+        </button>
+        <button class="btn btn-ghost danger-btn" id="deleteAllBtn">
+          <span class="material-symbols-rounded" style="font-size:18px">delete_sweep</span>
+          全部删除
+        </button>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<!-- 全屏拖拽遮罩 -->
+<div class="drop-overlay" id="dropOverlay" aria-hidden="true">
+  <div class="overlay-box">
+    <div class="ov-icon">
+      <span class="material-symbols-rounded">cloud_upload</span>
+    </div>
+    <div class="ov-title">松开以上传文件</div>
+    <div class="ov-sub">支持同时拖入多个文件</div>
+  </div>
+</div>
+
+<!-- 悬浮二维码预览 -->
+<div class="qr-hover" id="qrHover" aria-hidden="true">
+  <img id="qrHoverImg" alt="">
+</div>
+
+<!-- 二维码对话框 -->
+<div class="dialog-wrap" id="qrDialog" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-label="扫码下载">
+    <div class="dlg-title">扫码直接下载</div>
+    <div class="dlg-name" id="dlgName"></div>
+    <img class="dlg-qr" id="dlgQr" alt="下载二维码">
+    <div class="dlg-url" id="dlgUrl"></div>
+    <div class="dlg-actions">
+      <button class="btn btn-ghost" id="dlgToggleV6" style="display:none" title="切换 IPv4/IPv6 地址">切换 IPv6</button>
+      <button class="btn btn-ghost" id="dlgCopy">复制链接</button>
+      <button class="btn btn-primary" id="dlgClose">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 设置对话框 -->
+<div class="dialog-wrap" id="settingsDialog" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-label="设置">
+    <div class="dlg-title">设置</div>
+    <div class="set-row">
+      <label for="portInput">服务端口</label>
+      <input class="set-input" id="portInput" type="number" min="1" max="65535"
+             inputmode="numeric" autocomplete="off">
+    </div>
+    <div class="set-tip" id="portTip">改完服务会切到新端口，本页会自动跳转到新地址。</div>
+    <div class="dlg-actions">
+      <button class="btn btn-ghost" id="settingsCancel">取消</button>
+      <button class="btn btn-primary" id="settingsSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast-wrap">
+  <div class="toast" id="toast" role="status">
+    <span class="material-symbols-rounded" id="toastIcon">check_circle</span>
+    <span id="toastText"></span>
+  </div>
+</div>
+
+<script src="qrcode.min.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var dropzone  = document.getElementById('dropzone');
+  var picker    = document.getElementById('picker');
+  var list      = document.getElementById('list');
+  var toast     = document.getElementById('toast');
+  var toastText = document.getElementById('toastText');
+  var toastIcon = document.getElementById('toastIcon');
+  var themeBtn  = document.getElementById('themeBtn');
+  var themeIcon = document.getElementById('themeIcon');
+  var upList    = document.getElementById('upList');
+  var upEmpty   = document.getElementById('upEmpty');
+  var upCount   = document.getElementById('upCount');
+  var qrDialog  = document.getElementById('qrDialog');
+  var dlgName   = document.getElementById('dlgName');
+  var dlgQr     = document.getElementById('dlgQr');
+  var dlgUrl    = document.getElementById('dlgUrl');
+  var dlgCopy   = document.getElementById('dlgCopy');
+  var dlgClose  = document.getElementById('dlgClose');
+  var directSwitch = document.getElementById('directSwitch');
+  var directLabel = document.getElementById('directLabel');
+  var qrHover   = document.getElementById('qrHover');
+  var qrHoverImg = document.getElementById('qrHoverImg');
+
+  var items = [];     // 上传队列(待上传/上传中/失败)
+  var uploaded = [];  // 已完成
+  var toastTimer = null;
+  var hostBase = location.origin;
+  var hostBaseV6 = null;     // IPv6 基地址
+  var useIPv6 = false;       // 当前是否使用 IPv6 生成二维码
+  var hostProbed = false;    // 是否已完成首次地址探测
+
+  // 取局域网基地址用于生成二维码(手机扫码走局域网 IP，同时获取 IPv6)
+  // 定时 + 切回页面时重探：中途接入 IPv6 不需要刷新页面
+  function refreshHost() {
+    return fetch('/api/host').then(function (r) { return r.json(); }).then(function (d) {
+      if (!d) return;
+      if (d.base) hostBase = d.base;
+      var v6 = d.base_v6 || null;
+      var changed = v6 !== hostBaseV6;
+      hostBaseV6 = v6;
+      if (!v6 && useIPv6) {              // IPv6 掉了就退回 IPv4,避免二维码失效
+        useIPv6 = false;
+        uploaded.forEach(function (it) { it.qrSrc = null; });
+        showToast('IPv6 地址已失效，二维码切回 IPv4', 'lan');
+      }
+      updateV6GlobalBtn();
+      if (!qrDialog.hidden) refreshQrDialog();
+      if (changed && v6 && hostProbed) showToast('已检测到可用的 IPv6 地址', 'lan');
+      hostProbed = true;
+    }).catch(function () {});
+  }
+  refreshHost();
+  setInterval(refreshHost, 20000);
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) refreshHost();
+  });
+
+  // 页面加载时从后端拉取已有的未过期文件，自动恢复已上传面板
+  fetch('/api/files').then(function (r) { return r.json(); }).then(function (d) {
+    if (d && Array.isArray(d.files)) {
+      d.files.forEach(function (f) {
+        var it = {
+          file: { name: f.name, size: f.size },
+          dl: { id: f.id, name: f.name, size: f.size, url: f.url, raw: f.raw, direct: f.direct }
+        };
+        uploaded.push(it);
+        upList.appendChild(buildUpRow(it));
+      });
+      refresh();
+    }
+  }).catch(function () {});
+
+  function currentBase() {
+    return (useIPv6 && hostBaseV6) ? hostBaseV6 : hostBase;
+  }
+
+  /* ---------- 直链模式开关(默认开) ---------- */
+  var directMode = true;
+  try {
+    var savedDirect = localStorage.getItem('directMode');
+    if (savedDirect !== null) directMode = savedDirect === '1';
+  } catch (e) {}
+
+  function renderDirectSwitch() {
+    if (directSwitch) directSwitch.setAttribute('aria-checked', directMode ? 'true' : 'false');
+  }
+  renderDirectSwitch();
+
+  function toggleDirectMode() {
+    directMode = !directMode;
+    try { localStorage.setItem('directMode', directMode ? '1' : '0'); } catch (e) {}
+    renderDirectSwitch();
+    uploaded.forEach(function (it) { it.qrSrc = null; });   // 失效已缓存的二维码
+    if (!qrDialog.hidden) refreshQrDialog();
+    showToast(directMode ? '已开启直链模式：链接直接指向文件' : '已关闭直链模式：链接指向下载页', 'link');
+  }
+
+  if (directSwitch) directSwitch.addEventListener('click', toggleDirectMode);
+  if (directLabel) directLabel.addEventListener('click', toggleDirectMode);
+
+  // 分享路径：直链模式用 /f/<真文件名>(打开即下载)，否则用 /d/<id> 下载页
+  function sharePath(it) {
+    if (!it.dl) return '';
+    return (directMode && it.dl.direct) ? it.dl.direct : it.dl.url;
+  }
+
+  // 展示/复制用：保留中文，肉眼可读
+  function shareUrl(it) {
+    var p = sharePath(it);
+    return p ? currentBase() + p : '';
+  }
+
+  // 二维码内容：路径里的中文按 UTF-8 百分号编码，扫码兼容性更好
+  function shareUrlEncoded(it) {
+    var p = sharePath(it);
+    if (!p) return '';
+    try { p = encodeURI(p); } catch (e) {}
+    return currentBase() + p;
+  }
+
+  if (location.protocol === 'file:') {
+    setTimeout(function () {
+      showToast('请运行 server.py 并通过 http://localhost:8000 访问', 'error');
+    }, 400);
+  }
+
+  /* ---------- 退出程序自动清空文件开关 ---------- */
+  var cleanExitSwitch = document.getElementById('cleanExitSwitch');
+  var cleanExitLabel = document.getElementById('cleanExitLabel');
+  var cleanExit = false;
+
+  function renderCleanExitSwitch() {
+    if (cleanExitSwitch) cleanExitSwitch.setAttribute('aria-checked', cleanExit ? 'true' : 'false');
+  }
+
+  fetch('/api/config').then(function (r) { return r.json(); }).then(function (d) {
+    if (d && d.clean_on_exit !== undefined) {
+      cleanExit = d.clean_on_exit;
+      renderCleanExitSwitch();
+    }
+  }).catch(function () {});
+
+  function toggleCleanExit() {
+    cleanExit = !cleanExit;
+    renderCleanExitSwitch();
+    fetch('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clean_on_exit: cleanExit })
+    }).then(function () {
+      showToast(cleanExit ? '已开启退出程序自动清空文件' : '已关闭退出程序自动清空文件', 'cleaning_services');
+    }).catch(function () {});
+  }
+
+  if (cleanExitSwitch) cleanExitSwitch.addEventListener('click', toggleCleanExit);
+  if (cleanExitLabel) cleanExitLabel.addEventListener('click', toggleCleanExit);
+
+  /* ---------- 设置:自定义端口 ---------- */
+  var settingsBtn = document.getElementById('settingsBtn');
+  var settingsDialog = document.getElementById('settingsDialog');
+  var settingsCancel = document.getElementById('settingsCancel');
+  var settingsSave = document.getElementById('settingsSave');
+  var portInput = document.getElementById('portInput');
+  var portTip = document.getElementById('portTip');
+  var currentPort = parseInt(location.port, 10) || (location.protocol === 'https:' ? 443 : 80);
+
+  function showPortTip(text, isError) {
+    portTip.textContent = text;
+    portTip.classList.toggle('err', !!isError);
+  }
+
+  function openSettings() {
+    portInput.value = currentPort;
+    showPortTip('改完服务会切到新端口，本页会自动跳转到新地址。', false);
+    settingsDialog.hidden = false;
+    portInput.focus();
+    portInput.select();
+  }
+
+  function closeSettings() { settingsDialog.hidden = true; }
+
+  if (settingsBtn) settingsBtn.addEventListener('click', openSettings);
+  if (settingsCancel) settingsCancel.addEventListener('click', closeSettings);
+  if (settingsDialog) {
+    settingsDialog.addEventListener('click', function (e) {
+      if (e.target === settingsDialog) closeSettings();
+    });
+  }
+
+  if (settingsSave) {
+    settingsSave.addEventListener('click', function () {
+      var raw = (portInput.value || '').trim();
+      var port = parseInt(raw, 10);
+      if (!/^\d+$/.test(raw) || !(port >= 1 && port <= 65535)) {
+        showPortTip('端口要填 1 - 65535 之间的数字', true);
+        return;
+      }
+      if (port === currentPort) { closeSettings(); return; }
+
+      settingsSave.disabled = true;
+      fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ port: port })
+      }).then(function (r) {
+        return r.json().catch(function () { return {}; }).then(function (d) {
+          return { ok: r.ok, data: d };
+        });
+      }).then(function (res) {
+        settingsSave.disabled = false;
+        if (!res.ok || res.data.ok === false) {
+          showPortTip(res.data.error || '修改失败，请重试', true);
+          return;
+        }
+        currentPort = port;
+        showPortTip('已切换到端口 ' + port + '，正在跳转…', false);
+        showToast('端口已改为 ' + port + '，正在跳转', 'settings');
+        setTimeout(function () {
+          location.replace(location.protocol + '//' + location.hostname + ':' + port + '/');
+        }, 1200);
+      }).catch(function () {
+        settingsSave.disabled = false;
+        showPortTip('请求失败，请重试', true);
+      });
+    });
+  }
+
+  /* ---------- 主题:默认跟随系统,手动切换后记住选择 ---------- */
+  var mq = window.matchMedia('(prefers-color-scheme: dark)');
+  function setTheme(dark) {
+    document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+    themeIcon.textContent = dark ? 'light_mode' : 'dark_mode';
+  }
+  function savedTheme() {
+    try { return localStorage.getItem('theme'); } catch (e) { return null; }
+  }
+  setTheme(savedTheme() ? savedTheme() === 'dark' : mq.matches);
+  mq.addEventListener('change', function (e) {
+    if (!savedTheme()) setTheme(e.matches);   // 用户没手动选过才跟随系统
+  });
+  themeBtn.addEventListener('click', function () {
+    var dark = document.documentElement.getAttribute('data-theme') !== 'dark';
+    setTheme(dark);
+    try { localStorage.setItem('theme', dark ? 'dark' : 'light'); } catch (e) {}
+  });
+
+  /* ---------- Toast ---------- */
+  function showToast(msg, icon) {
+    toastText.textContent = msg;
+    toastIcon.textContent = icon || 'check_circle';
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toast.classList.remove('show'); }, 2600);
+  }
+
+  /* ---------- 工具 ---------- */
+  function fmtSize(n) {
+    if (n < 1024) return n + ' B';
+    var units = ['KB', 'MB', 'GB', 'TB'], i = -1;
+    do { n /= 1024; i++; } while (n >= 1024 && i < units.length - 1);
+    return n.toFixed(n >= 100 ? 0 : 1) + ' ' + units[i];
+  }
+
+  function iconOf(name) {
+    var ext = (name.split('.').pop() || '').toLowerCase();
+    if ('png jpg jpeg gif webp svg bmp avif'.indexOf(ext) > -1) return 'image';
+    if ('mp4 mkv mov avi webm'.indexOf(ext) > -1) return 'movie';
+    if ('mp3 wav flac ogg m4a'.indexOf(ext) > -1) return 'audio_file';
+    if ('zip rar 7z tar gz'.indexOf(ext) > -1) return 'folder_zip';
+    if (ext === 'pdf') return 'picture_as_pdf';
+    if ('doc docx txt md'.indexOf(ext) > -1) return 'description';
+    if ('xls xlsx csv'.indexOf(ext) > -1) return 'table';
+    return 'draft';
+  }
+
+  function refresh() {
+    list.classList.toggle('has-items', items.length > 0);
+    upCount.textContent = uploaded.length;
+    upEmpty.style.display = uploaded.length ? 'none' : 'flex';
+  }
+
+  /* ---------- 已上传条目 ---------- */
+  function buildUpRow(it) {
+    var row = document.createElement('div');
+    row.className = 'row done';
+    row.innerHTML =
+      '<div class="f-icon"><span class="material-symbols-rounded">' + iconOf(it.file.name) + '</span></div>' +
+      '<div class="f-main">' +
+        '<div class="f-name"></div>' +
+        '<div class="f-info">' + fmtSize(it.file.size) + ' · 已完成</div>' +
+      '</div>' +
+      '<button class="mini-btn qr-btn" aria-label="扫码下载" title="扫码下载">' +
+        '<span class="material-symbols-rounded">qr_code_2</span></button>' +
+      '<button class="mini-btn" aria-label="移除"><span class="material-symbols-rounded">close</span></button>';
+    row.querySelector('.f-name').textContent = it.file.name;
+
+    var qrBtn = row.querySelector('.qr-btn');
+    qrBtn.addEventListener('click', function () { openQrDialog(it); });
+    // 悬浮显示二维码预览
+    qrBtn.addEventListener('mouseenter', function () {
+      var src = qrSrcFor(it);
+      if (!src) return;
+      qrHoverImg.src = src;
+      var r = qrBtn.getBoundingClientRect();
+      var left = Math.max(8, r.right - 160);
+      var top = r.bottom + 6;
+      if (top + 170 > window.innerHeight) top = r.top - 166;
+      qrHover.style.left = left + 'px';
+      qrHover.style.top = top + 'px';
+      qrHover.classList.add('show');
+    });
+    qrBtn.addEventListener('mouseleave', function () {
+      qrHover.classList.remove('show');
+    });
+
+    row.querySelector('.mini-btn:last-child').addEventListener('click', function () {
+      if (it.dl && it.dl.id) {
+        fetch('/api/delete/' + it.dl.id, { method: 'POST' }).catch(function () {});
+      }
+      row.remove();
+      uploaded = uploaded.filter(function (x) { return x !== it; });
+      refresh();
+    });
+    return row;
+  }
+
+  // 上传完成:短暂展示 100% 后移入右侧已上传列表
+  function finishItem(it) {
+    it.state = 'done';
+    it.row.classList.add('done');
+    setInfo(it, fmtSize(it.file.size) + ' · 已完成');
+
+    setTimeout(function () {
+      it.row.remove();
+      items = items.filter(function (x) { return x !== it; });
+      uploaded.push(it);
+      upList.appendChild(buildUpRow(it));
+      refresh();
+
+      var active = items.some(function (x) {
+        return x.state === 'pending' || x.state === 'uploading';
+      });
+      if (!active) {
+        var fails = items.filter(function (x) { return x.state === 'fail'; }).length;
+        if (fails > 0) showToast('上传完成,' + fails + ' 个文件失败', 'error');
+        else if (uploaded.length) showToast('全部文件上传完成');
+      }
+    }, 400);
+  }
+
+  /* ---------- 文件行 ---------- */
+  function addFiles(fileArr) {
+    Array.prototype.forEach.call(fileArr, function (file) {
+      var it = { file: file, state: 'pending', timer: null };
+
+      var row = document.createElement('div');
+      row.className = 'row';
+      row.innerHTML =
+        '<div class="f-icon"><span class="material-symbols-rounded">' + iconOf(file.name) + '</span></div>' +
+        '<div class="f-main">' +
+          '<div class="f-name"></div>' +
+          '<div class="f-info">' + fmtSize(file.size) + ' · 待上传</div>' +
+          '<div class="track"><div class="fill"></div></div>' +
+        '</div>' +
+        '<button class="mini-btn" aria-label="移除"><span class="material-symbols-rounded">close</span></button>';
+
+      row.querySelector('.f-name').textContent = file.name;
+      row.querySelector('.mini-btn').addEventListener('click', function () {
+        if (it.state === 'fail') retryUpload(it);
+        else removeItem(it);
+      });
+
+      it.row = row;
+      list.appendChild(row);
+      items.push(it);
+    });
+    refresh();
+    // 拖入/选入即传
+    items.forEach(function (it) {
+      if (it.state === 'pending') upload(it);
+    });
+    refresh();
+  }
+
+  function removeItem(it) {
+    // 上传中点 X = 取消这次上传
+    if (it.xhr) { try { it.xhr.abort(); } catch (e) {} }
+    clearInterval(it.timer);
+    it.row.remove();
+    items = items.filter(function (x) { return x !== it; });
+    refresh();
+  }
+
+  function setInfo(it, text) {
+    var info = it.row.querySelector('.f-info');
+    info.textContent = text;
+    info.title = text;   // 文字过长被省略时可悬停查看
+  }
+
+  /* ---------- 真实上传(XHR, 带进度) ---------- */
+  // 服务端错误统一返回 JSON，优先展示里面的可读信息
+  function serverError(xhr) {
+    var msg = '';
+    try {
+      var d = JSON.parse(xhr.responseText);
+      if (d) msg = d.error || d.message || '';
+    } catch (e) {}
+    return msg || ('服务器错误 (' + xhr.status + ')');
+  }
+
+  function upload(it) {
+    it.state = 'uploading';
+    // 上传中保留右侧 X 按钮：点它就是取消这次上传
+    var btn = it.row.querySelector('.mini-btn');
+    btn.style.visibility = 'visible';
+    btn.title = '取消上传';
+    btn.setAttribute('aria-label', '取消上传');
+    btn.innerHTML = '<span class="material-symbols-rounded">close</span>';
+
+    var fill = it.row.querySelector('.fill');
+    var xhr = new XMLHttpRequest();
+    it.xhr = xhr;
+
+    xhr.upload.addEventListener('progress', function (e) {
+      if (!e.lengthComputable) return;
+      var pct = Math.min(100, e.loaded / e.total * 100);
+      fill.style.width = pct + '%';
+      setInfo(it, fmtSize(it.file.size) + ' · ' + Math.floor(pct) + '%');
+    });
+
+    xhr.addEventListener('load', function () {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try { it.dl = JSON.parse(xhr.responseText); } catch (e) { it.dl = null; }
+        if (it.dl && it.dl.url) {
+          fill.style.width = '100%';
+          finishItem(it);
+        } else {
+          failItem(it, '服务器响应异常');
+        }
+      } else {
+        failItem(it, serverError(xhr));
+      }
+      refresh();
+    });
+
+    xhr.addEventListener('error', function () {
+      failItem(it, '网络错误');
+      refresh();
+    });
+
+    xhr.addEventListener('abort', function () {
+      refresh();
+    });
+
+    var fd = new FormData();
+    fd.append('file', it.file, it.file.name);
+    xhr.open('POST', '/api/upload');
+    xhr.send(fd);
+  }
+
+  function failItem(it, msg) {
+    it.state = 'fail';
+    it.row.classList.add('fail');
+    setInfo(it, fmtSize(it.file.size) + ' · ' + msg + '，点右侧重试');
+    var btn = it.row.querySelector('.mini-btn');
+    btn.style.visibility = 'visible';
+    btn.title = '重试上传';
+    btn.setAttribute('aria-label', '重试上传');
+    btn.innerHTML = '<span class="material-symbols-rounded">refresh</span>';
+    showToast('「' + it.file.name + '」上传失败', 'error');
+  }
+
+  function retryUpload(it) {
+    it.row.classList.remove('fail');
+    it.row.querySelector('.fill').style.width = '0';
+    var btn = it.row.querySelector('.mini-btn');
+    btn.innerHTML = '<span class="material-symbols-rounded">close</span>';
+    setInfo(it, fmtSize(it.file.size) + ' · 待上传');
+    upload(it);
+  }
+
+  /* ---------- 二维码 ---------- */
+  // 按目标像素生成二维码：模块尺寸取整数倍、四周留 4 格静默区，
+  // 显示时用图片原始尺寸(1:1)，不做缩放，文件名长也能扫
+  function makeQrDataUrl(text, targetPx) {
+    if (!text) return null;
+    var qr = qrcode(0, 'M');
+    qr.addData(text);
+    qr.make();
+    var count = qr.getModuleCount();
+    var cell = Math.max(2, Math.floor(targetPx / (count + 8)));  // 8 = 静默区 4 格 × 2
+    var margin = cell * 4;
+    return { src: qr.createDataURL(cell, margin), px: count * cell + margin * 2 };
+  }
+
+  // 生成并缓存 QR dataURL(悬浮预览用)；地址或直链模式变化时自动重生成
+  function qrSrcFor(it) {
+    if (!it.dl) return null;
+    var key = currentBase() + '|' + (directMode ? 'direct' : 'page');
+    if (it.qrSrc && it.qrKey === key) return it.qrSrc;
+    var made = makeQrDataUrl(shareUrlEncoded(it), 150);
+    it.qrSrc = made ? made.src : null;
+    it.qrKey = key;
+    return it.qrSrc;
+  }
+
+  /* ---------- 二维码对话框 ---------- */
+  var currentQrItem = null;  // 当前对话框正在显示的 item
+
+  function refreshQrDialog() {
+    if (!currentQrItem || !currentQrItem.dl) return;
+    dlgName.textContent = currentQrItem.file.name;
+    dlgUrl.textContent = shareUrl(currentQrItem);
+    var dlgTitle = document.querySelector('#qrDialog .dlg-title');
+    if (dlgTitle) dlgTitle.textContent = directMode ? '扫码直接下载' : '扫码打开下载页';
+    try {
+      var made = makeQrDataUrl(shareUrlEncoded(currentQrItem), 268);
+      if (!made) throw new Error('empty');
+      dlgQr.src = made.src;
+      dlgQr.style.width = made.px + 'px';    // 用 1:1 像素显示, 不做缩放
+      dlgQr.style.height = made.px + 'px';
+    } catch (e) {
+      showToast('二维码生成失败', 'error');
+    }
+    // 更新切换按钮状态
+    var toggleBtn = document.getElementById('dlgToggleV6');
+    if (toggleBtn) {
+      if (!hostBaseV6) {
+        toggleBtn.style.display = 'none';
+      } else {
+        toggleBtn.style.display = '';
+        toggleBtn.textContent = useIPv6 ? '切换 IPv4' : '切换 IPv6';
+      }
+    }
+  }
+
+  function openQrDialog(it) {
+    if (!it.dl) return;
+    currentQrItem = it;
+    refreshQrDialog();
+    qrDialog.hidden = false;
+  }
+
+  function closeQrDialog() { qrDialog.hidden = true; }
+  dlgClose.addEventListener('click', closeQrDialog);
+  qrDialog.addEventListener('click', function (e) {
+    if (e.target === qrDialog) closeQrDialog();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { closeQrDialog(); closeSettings(); }
+  });
+
+  var v6ToggleGlobalBtn = document.getElementById('v6ToggleGlobalBtn');
+  var v6ToggleGlobalText = document.getElementById('v6ToggleGlobalText');
+
+  function updateV6GlobalBtn() {
+    if (v6ToggleGlobalText) {
+      v6ToggleGlobalText.textContent = useIPv6 ? '二维码: IPv6' : '二维码: IPv4';
+    }
+    if (v6ToggleGlobalBtn) {
+      // 没有 IPv6 时置灰,而不是点了才报错
+      v6ToggleGlobalBtn.disabled = !hostBaseV6;
+      v6ToggleGlobalBtn.title = hostBaseV6
+        ? '切换 IPv4 / IPv6 二维码地址'
+        : '未检测到可用的 IPv6 地址';
+    }
+  }
+
+  function toggleGlobalIPv6() {
+    if (!hostBaseV6) {
+      showToast('未检测到可用 IPv6 地址', 'warning');
+      return;
+    }
+    useIPv6 = !useIPv6;
+    updateV6GlobalBtn();
+    uploaded.forEach(function (it) { it.qrSrc = null; });
+    if (!qrDialog.hidden) {
+      refreshQrDialog();
+    }
+    showToast(useIPv6 ? '已切换至 IPv6 地址生成二维码' : '已切换至 IPv4 地址生成二维码', 'lan');
+  }
+
+  if (v6ToggleGlobalBtn) {
+    v6ToggleGlobalBtn.addEventListener('click', toggleGlobalIPv6);
+  }
+
+  // IPv4 / IPv6 弹窗切换按钮同步
+  var dlgToggleV6Btn = document.getElementById('dlgToggleV6');
+  if (dlgToggleV6Btn) {
+    dlgToggleV6Btn.addEventListener('click', function () {
+      useIPv6 = !useIPv6;
+      updateV6GlobalBtn();
+      uploaded.forEach(function (it) { it.qrSrc = null; });
+      refreshQrDialog();
+      showToast(useIPv6 ? '已切换到 IPv6' : '已切换到 IPv4', 'swap_horiz');
+    });
+  }
+
+  dlgCopy.addEventListener('click', function () {
+    var url = dlgUrl.textContent;
+    function ok() { showToast('链接已复制'); }
+    function no() { showToast('复制失败,请手动复制', 'error'); }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(ok, no);
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = url;
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy') ? ok() : no(); } catch (e) { no(); }
+      ta.remove();
+    }
+  });
+
+  /* ---------- 全屏拖拽 ---------- */
+  var dropOverlay = document.getElementById('dropOverlay');
+  var dragDepth = 0;
+
+  // 滚动时隐藏悬浮二维码,防止浮窗与按钮脱节
+  window.addEventListener('scroll', function () {
+    qrHover.classList.remove('show');
+  }, true);
+
+  function draggingFiles(e) {
+    return e.dataTransfer &&
+      Array.prototype.indexOf.call(e.dataTransfer.types || [], 'Files') > -1;
+  }
+
+  window.addEventListener('dragenter', function (e) {
+    if (!draggingFiles(e)) return;
+    e.preventDefault();
+    dragDepth++;
+    dropOverlay.classList.add('visible');
+  });
+  window.addEventListener('dragover', function (e) {
+    if (!draggingFiles(e)) return;
+    e.preventDefault(); // 允许放置
+  });
+  window.addEventListener('dragleave', function (e) {
+    if (!draggingFiles(e)) return;
+    dragDepth--;
+    if (dragDepth <= 0) {
+      dragDepth = 0;
+      dropOverlay.classList.remove('visible');
+    }
+  });
+  window.addEventListener('drop', function (e) {
+    if (!draggingFiles(e)) return;
+    e.preventDefault();
+    dragDepth = 0;
+    dropOverlay.classList.remove('visible');
+    if (e.dataTransfer.files.length) {
+      addFiles(e.dataTransfer.files);
+      showToast('已添加 ' + e.dataTransfer.files.length + ' 个文件', 'description');
+    }
+  });
+
+  /* ---------- 事件 ---------- */
+  function triggerZeroCopyPicker(e) {
+    // Shift + 点击 = 走浏览器上传(手机上也能用)
+    if (e && e.shiftKey) { picker.click(); return; }
+    fetch('/api/pick_file', { method: 'POST' }).then(function (r) { return r.json(); }).then(function (d) {
+      if (d && d.ok && Array.isArray(d.files) && d.files.length) {
+        d.files.forEach(function (f) {
+          var it = {
+            file: { name: f.name, size: f.size },
+            dl: { id: f.id, name: f.name, size: f.size, url: f.url, raw: f.raw, direct: f.direct }
+          };
+          uploaded.push(it);
+          upList.appendChild(buildUpRow(it));
+        });
+        refresh();
+        showToast('免复制已添加 ' + d.files.length + ' 个文件', 'folder_open');
+      } else if (d && d.cancelled) {
+        // 用户在原生对话框里点了取消：什么都不做
+      } else {
+        if (d && d.error) console.warn('原生文件选择框不可用:', d.error);
+        picker.click(); // 降级为传统浏览器选择
+      }
+    }).catch(function () {
+      picker.click(); // 降级为传统浏览器选择
+    });
+  }
+
+  dropzone.addEventListener('click', triggerZeroCopyPicker);
+  dropzone.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); picker.click(); }
+  });
+  picker.addEventListener('change', function () {
+    if (picker.files.length) {
+      addFiles(picker.files);
+      showToast('已添加 ' + picker.files.length + ' 个文件', 'description');
+    }
+    picker.value = '';
+  });
+
+  ['dragenter', 'dragover'].forEach(function (ev) {
+    dropzone.addEventListener(ev, function (e) {
+      e.preventDefault();
+      dropzone.classList.add('over');
+    });
+  });
+  ['dragleave', 'drop'].forEach(function (ev) {
+    dropzone.addEventListener(ev, function (e) {
+      e.preventDefault();
+      dropzone.classList.remove('over');
+    });
+  });
+  dropzone.addEventListener('drop', function () {
+    // 文件添加统一由 window 的 drop 处理(事件冒泡),这里只清理高亮
+    dropzone.classList.remove('over');
+  });
+
+  var deleteAllBtn = document.getElementById('deleteAllBtn');
+  if (deleteAllBtn) {
+    deleteAllBtn.addEventListener('click', function () {
+      if (!uploaded.length) return;
+      fetch('/api/delete_all', { method: 'POST' }).then(function (r) { return r.json(); }).then(function (d) {
+        if (d && d.ok) {
+          uploaded = [];
+          upList.innerHTML = '';
+          refresh();
+          showToast('已清空所有分享记录并移除临时文件', 'delete_sweep');
+        }
+      }).catch(function () {});
+    });
+  }
+
+  refresh();
+})();
+</script>
+</body>
+</html>

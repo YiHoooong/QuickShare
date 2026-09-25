@@ -1,0 +1,21 @@
+# 运行时数据：上传的文件、索引和配置，不要提交
+uploads/
+
+# PyInstaller 构建产物
+build/
+dist/
+*.manifest
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*:Zone.Identifier

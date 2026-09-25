@@ -1,0 +1,5 @@
+# 运行时依赖
+flask>=3.0
+
+# 只有在重新生成图标字体时才需要（见 tools/build_icon_font.py）：
+# pip install fonttools uharfbuzz
