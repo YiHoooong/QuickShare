@@ -60,35 +60,66 @@ jobs:
           $exe = (Resolve-Path 'dist/QuickShare.exe').Path
           Write-Host ("exe 大小: {0:N1} MB" -f ((Get-Item $exe).Length / 1MB))
 
+          # onefile 启动要解包，再加上 Defender 扫描，冷启动可能明显偏慢，所以给足 45 秒
+          # 另外 PyInstaller onefile 是「引导进程 + 真正干活的子进程」，结束时要 taskkill /T 连子进程一起收掉
           $proc = Start-Process -FilePath $exe -PassThru `
                     -RedirectStandardOutput 'dist/run.log' -RedirectStandardError 'dist/run.err'
+          Write-Host "已启动 exe (PID $($proc.Id))，等待服务就绪…"
 
-          $base = 'http://127.0.0.1:8000'
+          $port = 8000
           $up = $false
-          foreach ($i in 1..30) {
+          foreach ($i in 1..45) {
             Start-Sleep -Seconds 1
-            if ((curl.exe -s -o NUL -w "%{http_code}" "$base/") -eq '200') { $up = $true; break }
+            # exe 会把自己实际监听的端口打进日志（配置端口被占用时会顺延）
+            $m = Select-String -Path 'dist/run.log' -Pattern 'localhost:(\d+)' -ErrorAction SilentlyContinue |
+                 Select-Object -First 1
+            if ($m) { $port = [int]$m.Matches[0].Groups[1].Value }
+            if ((curl.exe -s -o NUL --max-time 2 -w "%{http_code}" "http://127.0.0.1:$port/") -eq '200') {
+              $up = $true; break
+            }
           }
+
+          # 不管成功失败都把 exe 的输出打出来，省得去猜
+          Write-Host "----- exe stdout -----"
+          Get-Content 'dist/run.log' -ErrorAction SilentlyContinue
+          $err = Get-Content 'dist/run.err' -ErrorAction SilentlyContinue
+          if ($err) { Write-Host "----- exe stderr -----"; $err }
+
           if (-not $up) {
-            Write-Host "----- exe stdout -----"; Get-Content 'dist/run.log' -ErrorAction SilentlyContinue
-            Write-Host "----- exe stderr -----"; Get-Content 'dist/run.err' -ErrorAction SilentlyContinue
-            Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
-            Write-Error "服务 30 秒内没有起来（上面日志里能看到它实际用的端口）"
+            & taskkill /F /T /PID $proc.Id 2>$null | Out-Null
+            Write-Host "::error::exe 启动后 45 秒内没起来（端口 $port）"
             exit 1
           }
-          Write-Host "服务已启动"
+          Write-Host "服务已就绪，端口 $port"
 
-          $failed = 0
+          $base = "http://127.0.0.1:$port"
+          $failed = @()
           foreach ($path in @('/api/host', '/api/files', '/fonts/material-symbols-rounded.woff2',
                               '/fonts/roboto-latin.woff2', '/icon.png', '/favicon.ico', '/qrcode.min.js')) {
-            $code = curl.exe -s -o NUL -w "%{http_code}" "$base$path"
-            Write-Host ("  {0,-42} {1}" -f $path, $code)
-            if ($code -ne '200') { $failed++ }
+            $out  = curl.exe -s -o NUL --max-time 10 -w "%{http_code} %{time_total}" "$base$path"
+            $code = ($out -split '\s+')[0]
+            $sec  = ($out -split '\s+')[1]
+            Write-Host ("  {0,-42} {1}  {2}s" -f $path, $code, $sec)
+            if ($code -ne '200') { $failed += $path }
           }
 
-          Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
-          if ($failed -gt 0) { Write-Error "$failed 个路由没返回 200"; exit 1 }
+          & taskkill /F /T /PID $proc.Id 2>$null | Out-Null
+          if ($failed.Count -gt 0) {
+            Write-Host "::error::这些路由没返回 200: $($failed -join ', ')"
+            exit 1
+          }
           Write-Host "冒烟测试通过 ✓"
+
+      # 失败时也能看到 exe 自己吐了什么，否则日志要登录才能翻
+      - name: 留下 exe 运行日志
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-logs
+          path: |
+            dist/run.log
+            dist/run.err
+          if-no-files-found: ignore
 
       - name: 上传产物
         uses: actions/upload-artifact@v4

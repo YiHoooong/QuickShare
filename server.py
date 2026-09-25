@@ -373,9 +373,34 @@ def lan_ip():
         s.close()
 
 
+def _hostname_ipv6(timeout=2.0):
+    """从主机名解析本机 IPv6 地址（探测的备选路径）。
+
+    Windows 上 getaddrinfo 会依次尝试 DNS / NetBIOS / LLMNR，主机名解析不了时
+    能卡几十秒 —— 而这个函数在启动监听之前、以及每个 /api/host 请求里都会被调用，
+    不能让它拖住。放到线程里限时等待，超时就当没有 IPv6。
+    """
+    found = {}
+
+    def _work():
+        try:
+            for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET6):
+                addr = info[4][0].split('%')[0]
+                if addr != '::1' and not addr.startswith('fe80'):
+                    found['addr'] = addr
+                    return
+        except (socket.gaierror, OSError):
+            pass
+
+    t = threading.Thread(target=_work, daemon=True, name='ipv6-probe')
+    t.start()
+    t.join(timeout)
+    return found.get('addr')
+
+
 def lan_ipv6():
     """获取本机的局域网 IPv6 地址（非 link-local/loopback）"""
-    # 优先方法：通过 UDP 连接测试出站 IPv6
+    # 优先方法：通过 UDP 连接测试出站 IPv6（不发包，只让系统挑源地址）
     try:
         s = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
         try:
@@ -390,17 +415,8 @@ def lan_ipv6():
     except OSError:
         pass
 
-    # 备用方法：遍历本机接口
-    try:
-        hostname = socket.gethostname()
-        for info in socket.getaddrinfo(hostname, None, socket.AF_INET6):
-            addr = info[4][0].split('%')[0]
-            if addr != '::1' and not addr.startswith('fe80'):
-                return addr
-    except (socket.gaierror, OSError):
-        pass
-
-    return None
+    # 备用方法：解析主机名（限时，见上）
+    return _hostname_ipv6()
 
 
 def format_ipv6_url(addr, port):
@@ -847,6 +863,7 @@ if __name__ == '__main__':
     # 后台定时清理过期文件(不依赖是否有人访问)
     start_cleanup_loop()
 
+    print('正在检测局域网地址…', flush=True)
     ip4 = lan_ip()
     ip6 = lan_ipv6()
     first_round = True
