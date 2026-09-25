@@ -25,6 +25,24 @@ import time
 from flask import Flask, abort, jsonify, request, send_file, send_from_directory, render_template_string
 from werkzeug.exceptions import HTTPException
 
+
+def _force_utf8_stdio():
+    """把 stdout/stderr 固定成 UTF-8。
+
+    Windows 上输出被重定向到文件/管道时（`QuickShare.exe > log.txt`、计划任务拉起、
+    CI 里 RedirectStandardOutput），Python 用的不是 UTF-8 而是 cp1252 之类的本地编码，
+    这时 print 一句中文就会 UnicodeEncodeError 直接把进程带走。加 errors='replace'
+    保证再怎么样也不会因为一行日志崩掉。
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding='utf-8', errors='replace')
+        except Exception:
+            pass
+
+
+_force_utf8_stdio()
+
 # 适应 PyInstaller 打包路径：资源存 MEIPASS，用户文件存 exe 目录
 if getattr(sys, 'frozen', False):
     RESOURCE_DIR = sys._MEIPASS

@@ -60,7 +60,7 @@ jobs:
           $exe = (Resolve-Path 'dist/QuickShare.exe').Path
           Write-Host ("exe 大小: {0:N1} MB" -f ((Get-Item $exe).Length / 1MB))
 
-          # onefile 启动要解包，再加上 Defender 扫描，冷启动可能明显偏慢，所以给足 45 秒
+          # onefile 启动要解包，再加上 Defender 扫描，冷启动可能偏慢，所以最多等 30 秒
           # 另外 PyInstaller onefile 是「引导进程 + 真正干活的子进程」，结束时要 taskkill /T 连子进程一起收掉
           $proc = Start-Process -FilePath $exe -PassThru `
                     -RedirectStandardOutput 'dist/run.log' -RedirectStandardError 'dist/run.err'
@@ -68,15 +68,25 @@ jobs:
 
           $port = 8000
           $up = $false
-          foreach ($i in 1..45) {
-            Start-Sleep -Seconds 1
+          foreach ($i in 1..60) {
+            Start-Sleep -Milliseconds 500
             # exe 会把自己实际监听的端口打进日志（配置端口被占用时会顺延）
             $m = Select-String -Path 'dist/run.log' -Pattern 'localhost:(\d+)' -ErrorAction SilentlyContinue |
                  Select-Object -First 1
             if ($m) { $port = [int]$m.Matches[0].Groups[1].Value }
-            if ((curl.exe -s -o NUL --max-time 2 -w "%{http_code}" "http://127.0.0.1:$port/") -eq '200') {
-              $up = $true; break
-            }
+            # 探端口用 TcpClient：在 runner 上起一次 curl.exe 要 ~2 秒，60 次就是两分钟
+            try {
+              $client = New-Object Net.Sockets.TcpClient
+              $client.Connect('127.0.0.1', $port)
+              $client.Close()
+              $up = $true
+              break
+            } catch {}
+          }
+          # 端口通了再确认能真的返回页面
+          if ($up) {
+            $code = curl.exe -s -o NUL --max-time 5 -w "%{http_code}" "http://127.0.0.1:$port/"
+            if ($code -ne '200') { $up = $false }
           }
 
           # 不管成功失败都把 exe 的输出打出来，省得去猜
@@ -87,7 +97,7 @@ jobs:
 
           if (-not $up) {
             & taskkill /F /T /PID $proc.Id 2>$null | Out-Null
-            Write-Host "::error::exe 启动后 45 秒内没起来（端口 $port）"
+            Write-Host "::error::exe 启动后 30 秒内没就绪（端口 $port）"
             exit 1
           }
           Write-Host "服务已就绪，端口 $port"
