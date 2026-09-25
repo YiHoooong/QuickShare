@@ -87,12 +87,23 @@ python server.py
 
 ## 打包（Windows）
 
+本地打包：
+
 ```bash
 pip install pyinstaller
 pyinstaller QuickShare.spec --noconfirm
 ```
 
 产物是 `dist/QuickShare.exe`（单文件，约 15 MB，图标已内嵌）。
+
+**也可以交给 CI。** 打 tag 就会自动构建并发布 Release：
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0        # → Release 里出现 QuickShare.exe
+```
+
+不想打 tag 也可以在 Actions 页面手动触发 `构建 Windows 版`，产物在 Artifacts 里下载。CI 除了打包，还会**把 exe 真跑起来抽查接口**（`/api/host`、字体、图标等 7 个路由是否都返回 200），所以构建出来的东西至少是能启动的。
 
 ## 项目结构
 
@@ -113,6 +124,7 @@ QuickShare/
 │  └─ icon.ico                exe 图标（spec 的 icon= 引用它）
 ├─ docs/screenshot.png        界面截图
 ├─ tools/build_icon_font.py   重新生成图标字体子集
+├─ .github/workflows/build-windows.yml   打 tag 自动构建 Windows 版
 ├─ QuickShare.spec            PyInstaller 打包脚本
 ├─ requirements.txt           运行时依赖（只有 Flask）
 ├─ README.md
