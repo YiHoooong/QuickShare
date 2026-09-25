@@ -1,5 +1,7 @@
 # QuickShare
 
+[![构建 Windows 版](https://github.com/YiHoooong/QuickShare/actions/workflows/build-windows.yml/badge.svg)](https://github.com/YiHoooong/QuickShare/actions/workflows/build-windows.yml)
+
 局域网文件快传。**方便好用的中转方案**
 
 ![界面截图](docs/screenshot.png)
